@@ -8,5 +8,13 @@
   "keywords": [],
   "author": "AugustoResende",
   "license": "MIT",
-  "description": ""
+  "description": "",
+  "dependencies": {
+    "json-socket": "^0.3.0",
+    "nedb": "^1.8.0",
+    "net-buffer": "^0.1.0",
+    "qs": "^6.5.1",
+    "request": "^2.83.0",
+    "request-json": "^0.6.2"
+  }
 }
