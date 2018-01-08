@@ -10,6 +10,7 @@
   "license": "MIT",
   "description": "",
   "dependencies": {
+    "bignumber.js": "^5.0.0",
     "json-socket": "^0.3.0",
     "nedb": "^1.8.0",
     "net-buffer": "^0.1.0",
