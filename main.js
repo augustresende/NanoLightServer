@@ -22,7 +22,7 @@ var raid = request.createClient('http://'+rai_node_ip+':'+rai_node_port);
 server.on('connection', function(socket) {
     socket = new JsonSocket(socket);
 	clients.push(socket);
-	//Handle messages
+	//Handle request
     socket.on('message', function(r) {
 		//If request = getBlocksCount
 		if (r.requestType == "getBlocksCount") {
@@ -36,22 +36,39 @@ server.on('connection', function(socket) {
 			var data = {"action": "account_balance","account": r.address};
 			raid.post('/', data, function(err, res, body) {
 			  balance = new BigNumber(body.balance).plus(body.pending);
-			  balance = balance.dividedBy('1e+30');
-			  console.log(balance.toFixed(6));
-			  socket.sendMessage({type: "Balance", balance: balance.toFixed(6)});
+			  socket.sendMessage({type: "Balance", balance: balance});
 			});
 		}
 		//If request = getInfo
 		if (r.requestType == "getInfo") {
 			var data = {"action": "account_info", "account": r.address, "representative": "true", "weight": "true", "pending": "true"}
 			raid.post('/', data, function(err, res, body) {
-			  balance = new BigNumber(body.balance);
-			  pending = new BigNumber(body.pending);
-			  balance = balance.dividedBy('1e+30');
-			  pending = pending.dividedBy('1e+30');
-			  socket.sendMessage({type: "Info", balance: balance.toFixed(6), pending: pending.toFixed(6), block_count: body.block_count, representative: body.representative});
+			  socket.sendMessage({type: "Info", balance: body.balance, pending: body.pending, block_count: body.block_count, representative: body.representative});
 			});
 		}
+		if (r.requestType == "getPendingBlocks") {
+			if (typeof r.threshold == 'undefined') { r.threshold = 1000000000000000000; }
+			if (typeof r.source == 'undefined') { r.source = true; }
+			var data = {"action": "accounts_pending", "accounts": r.addresses, "threshold": r.threshold, "source": r.source}
+			raid.post('/', data, function(err, res, body) {
+			  socket.sendMessage({type: "PendingBlocks", blocks: body.blocks});
+			  console.log(body);
+			});
+		}
+		
+		if (r.requestType == "processBlock") {
+			var data = {"action": "process", "block": r.block}
+			console.log(data);
+			raid.post('/', data, function(err, res, body) {
+			  if (typeof body.error == 'undefined') {
+			    socket.sendMessage({type: "processResponse", status: true, hash: body.hash});
+			  } else {
+				socket.sendMessage({type: "processResponse", status: false});
+			  }
+			  console.log(body);
+			});
+		}
+		
     });
 	socket.on('error', function(){});
 });
