@@ -5,6 +5,7 @@ request = require('request-json');
 var BigNumber = require('bignumber.js');
 var clients = [];
 var blocks;
+var clientsbal = [];
 
 //Settings
 var port = 7077;
@@ -53,14 +54,19 @@ server.on('connection', function(socket) {
 			  socket.sendMessage({type: "History", history: body.history});
 			});
 		}
+		//If request = getChain
 		if (r.requestType == "getChain") {
-			console.log(r);
+			//console.log(r);
 			var data = {"action": "account_history", "account": r.address, "count": r.count}
 			raid.post('/', data, function(err, res, body) {
 			  var hashes = [];
 			  if(body.history.length > 0){   
 				body.history.forEach(function(val, key){
 				  hashes.push(val.hash);
+				});
+				var data = {"action": "blocks_info", "hashes": hashes}
+				raid.post('/', data, function(err, res, body) {
+				  socket.sendMessage({type: "Chain", blocks: body.blocks});
 				});
 			  }
 			});
@@ -72,25 +78,37 @@ server.on('connection', function(socket) {
 			var data = {"action": "accounts_pending", "accounts": r.addresses, "threshold": r.threshold, "source": r.source}
 			raid.post('/', data, function(err, res, body) {
 			  socket.sendMessage({type: "PendingBlocks", blocks: body.blocks});
-			  console.log(body);
 			});
 		}
-		
+		//If request = processBlock
 		if (r.requestType == "processBlock") {
+			console.log("processing a block");
 			var data = {"action": "process", "block": r.block}
 			console.log(data);
 			raid.post('/', data, function(err, res, body) {
 			  if (typeof body.error == 'undefined') {
 			    socket.sendMessage({type: "processResponse", status: true, hash: body.hash});
+				console.log("sucess");
 			  } else {
 				socket.sendMessage({type: "processResponse", status: false});
+				console.log(body.error);
 			  }
-			  console.log(body);
 			});
+		}
+		if (r.requestType == "registerAddresses") {
+			if (r.addresses) {
+				console.log("registered");
+				updateAddresses(socket, r.addresses);
+			}
+
 		}
 		
     });
-	socket.on('error', function(){});
+	socket.on('error', function(){
+		clients.pop(socket);
+		clientsbal[socket] = false;
+		
+	});
 });
 
 function broadcast(message) {
@@ -110,5 +128,28 @@ function updateBlocks() {
 	});
 }
 setInterval(updateBlocks, 250);
+
+function updateAddresses(socket, addresses) {
+  var data = {"action": "accounts_balances","accounts": addresses};
+	raid.post('/', data, function(err, res, body) {
+	  
+		for(let address in body['balances']){
+			if (typeof clientsbal[socket] == 'undefined') { clientsbal[socket] = []; }
+			balance = new BigNumber(body['balances'][address]['balance']).plus(body['balances'][address]['pending']);
+			if (clientsbal[socket][address] != balance.toNumber()) {
+				clientsbal[socket][address] = balance.toNumber();
+				socket.sendMessage({type: "balanceUpdate", address: address, balance:balance});
+			}
+			
+		}
+		if (clientsbal[socket] === false) {
+			delete clientsbal[socket];
+			return;
+		}
+		setTimeout(function(){updateAddresses(socket, addresses);}, 250);
+		
+	});
+
+};
 
 console.log("RaiLightServer is listening in port 7077.");
