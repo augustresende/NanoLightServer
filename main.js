@@ -46,6 +46,26 @@ server.on('connection', function(socket) {
 			  socket.sendMessage({type: "Info", balance: body.balance, pending: body.pending, block_count: body.block_count, representative: body.representative});
 			});
 		}
+		//If request = getHistory
+		if (r.requestType == "getHistory") {
+			var data = {"action": "account_history", "account": r.address, "count": r.count}
+			raid.post('/', data, function(err, res, body) {
+			  socket.sendMessage({type: "History", history: body.history});
+			});
+		}
+		if (r.requestType == "getChain") {
+			console.log(r);
+			var data = {"action": "account_history", "account": r.address, "count": r.count}
+			raid.post('/', data, function(err, res, body) {
+			  var hashes = [];
+			  if(body.history.length > 0){   
+				body.history.forEach(function(val, key){
+				  hashes.push(val.hash);
+				});
+			  }
+			});
+		}
+		//If request = getPendingBlocks
 		if (r.requestType == "getPendingBlocks") {
 			if (typeof r.threshold == 'undefined') { r.threshold = 1000000000000000000; }
 			if (typeof r.source == 'undefined') { r.source = true; }
@@ -83,6 +103,7 @@ function updateBlocks() {
 	var data = {"action": "block_count"};
 	raid.post('/', data, function(err, res, body) {
 		if (blocks != body.count) {
+			if (typeof body.count == 'undefined') { body.count = 0; }
 			broadcast({type: "BlocksCount", count: body.count});
 			blocks = body.count;
 		}
