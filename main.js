@@ -25,14 +25,14 @@ server.on('connection', function(socket) {
 	clients.push(socket);
 	//Handle request
     socket.on('message', function(r) {
-		//If request = getBlocksCount
+		// If request = getBlocksCount
 		if (r.requestType == "getBlocksCount") {
 			var data = {"action": "block_count"};
 			raid.post('/', data, function(err, res, body) {
 			  socket.sendMessage({type: "BlocksCount", count: body.count});
 			});
 		}
-		//If request = getBalance
+		// If request = getBalance
 		if (r.requestType == "getBalance") {
 			var data = {"action": "account_balance","account": r.address};
 			raid.post('/', data, function(err, res, body) {
@@ -40,21 +40,21 @@ server.on('connection', function(socket) {
 			  socket.sendMessage({type: "Balance", balance: balance});
 			});
 		}
-		//If request = getInfo
+		// If request = getInfo
 		if (r.requestType == "getInfo") {
 			var data = {"action": "account_info", "account": r.address, "representative": "true", "weight": "true", "pending": "true"}
 			raid.post('/', data, function(err, res, body) {
 			  socket.sendMessage({type: "Info", balance: body.balance, pending: body.pending, block_count: body.block_count, representative: body.representative});
 			});
 		}
-		//If request = getHistory
+		// If request = getHistory
 		if (r.requestType == "getHistory") {
 			var data = {"action": "account_history", "account": r.address, "count": r.count}
 			raid.post('/', data, function(err, res, body) {
 			  socket.sendMessage({type: "History", history: body.history});
 			});
 		}
-		//If request = getChain
+		// If request = getChain
 		if (r.requestType == "getChain") {
 			//console.log(r);
 			var data = {"action": "account_history", "account": r.address, "count": r.count}
@@ -68,10 +68,12 @@ server.on('connection', function(socket) {
 				raid.post('/', data, function(err, res, body) {
 				  socket.sendMessage({type: "Chain", blocks: body.blocks});
 				});
+			  } else {
+				  socket.sendMessage({type: "Chain", blocks: false});
 			  }
 			});
 		}
-		//If request = getPendingBlocks
+		// If request = getPendingBlocks
 		if (r.requestType == "getPendingBlocks") {
 			if (typeof r.threshold == 'undefined') { r.threshold = 1000000000000000000; }
 			if (typeof r.source == 'undefined') { r.source = true; }
@@ -80,7 +82,7 @@ server.on('connection', function(socket) {
 			  socket.sendMessage({type: "PendingBlocks", blocks: body.blocks});
 			});
 		}
-		//If request = processBlock
+		// If request = processBlock
 		if (r.requestType == "processBlock") {
 			console.log("processing a block");
 			var data = {"action": "process", "block": r.block}
@@ -95,6 +97,7 @@ server.on('connection', function(socket) {
 			  }
 			});
 		}
+		// If request = registerAddresses
 		if (r.requestType == "registerAddresses") {
 			if (r.addresses) {
 				console.log("registered");
@@ -107,6 +110,7 @@ server.on('connection', function(socket) {
 	socket.on('error', function(){
 		clients.pop(socket);
 		clientsbal[socket] = false;
+		console.log("down");
 		
 	});
 });
@@ -143,6 +147,9 @@ function updateAddresses(socket, addresses) {
 			
 		}
 		if (clientsbal[socket] === false) {
+			for(let address in body['balances']){
+				delete clientsbal[socket][address];
+			}
 			delete clientsbal[socket];
 			return;
 		}
