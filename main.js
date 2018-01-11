@@ -20,11 +20,15 @@ server.listen(port);
 var raid = request.createClient('http://'+rai_node_ip+':'+rai_node_port);
 
 //Handle connection
+var id = 0;
 server.on('connection', function(socket) {
     socket = new JsonSocket(socket);
+	var socketid = id;
+	id++;
 	clients.push(socket);
 	//Handle request
     socket.on('message', function(r) {
+		//console.log(r);
 		// If request = getBlocksCount
 		if (r.requestType == "getBlocksCount") {
 			var data = {"action": "block_count"};
@@ -101,7 +105,8 @@ server.on('connection', function(socket) {
 		if (r.requestType == "registerAddresses") {
 			if (r.addresses) {
 				console.log("registered");
-				updateAddresses(socket, r.addresses);
+				clientsbal[socketid] = [];
+				updateAddresses(socket, socketid, r.addresses);
 			}
 
 		}
@@ -109,9 +114,15 @@ server.on('connection', function(socket) {
     });
 	socket.on('error', function(){
 		clients.pop(socket);
-		clientsbal[socket] = false;
+		//if (typeof clientsbal[socket] == 'undefined') { clientsbal[socket] = []; }
+		clientsbal[socketid]['stop'] = true;
 		console.log("down");
-		
+	});
+	socket.on('disconnect', function(){
+		clients.pop(socket);
+		//if (typeof clientsbal[socket] == 'undefined') { clientsbal[socket] = []; }
+		clientsbal[socketid]['stop'] = true;
+		console.log("down");
 	});
 });
 
@@ -133,28 +144,23 @@ function updateBlocks() {
 }
 setInterval(updateBlocks, 250);
 
-function updateAddresses(socket, addresses) {
-  var data = {"action": "accounts_balances","accounts": addresses};
+function updateAddresses(socket, socketid, addresses) {
+	if (clientsbal[socketid]['stop']) {
+		clientsbal[socketid] = [];
+	}
+	var data = {"action": "accounts_balances","accounts": addresses};
 	raid.post('/', data, function(err, res, body) {
-	  
 		for(let address in body['balances']){
-			if (typeof clientsbal[socket] == 'undefined') { clientsbal[socket] = []; }
 			balance = new BigNumber(body['balances'][address]['balance']).plus(body['balances'][address]['pending']);
-			if (clientsbal[socket][address] != balance.toNumber()) {
-				clientsbal[socket][address] = balance.toNumber();
+			if (clientsbal[socketid][address] != balance.toNumber()) {
+				clientsbal[socketid][address] = balance.toNumber();
 				socket.sendMessage({type: "balanceUpdate", address: address, balance:balance});
+				console.log("send update to address "+address);
 			}
-			
+				
 		}
-		if (clientsbal[socket] === false) {
-			for(let address in body['balances']){
-				delete clientsbal[socket][address];
-			}
-			delete clientsbal[socket];
-			return;
-		}
-		setTimeout(function(){updateAddresses(socket, addresses);}, 250);
-		
+
+		setTimeout(function(){updateAddresses(socket, socketid, addresses);}, 250);
 	});
 
 };
