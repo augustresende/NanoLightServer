@@ -114,13 +114,13 @@ server.on('connection', function(socket) {
     });
 	socket.on('error', function(){
 		clients.pop(socket);
-		//if (typeof clientsbal[socket] == 'undefined') { clientsbal[socket] = []; }
+		if (typeof clientsbal[socketid] == 'undefined') { clientsbal[socketid] = []; }
 		clientsbal[socketid]['stop'] = true;
 		console.log("down");
 	});
 	socket.on('disconnect', function(){
 		clients.pop(socket);
-		//if (typeof clientsbal[socket] == 'undefined') { clientsbal[socket] = []; }
+		if (typeof clientsbal[socketid] == 'undefined') { clientsbal[socketid] = []; }
 		clientsbal[socketid]['stop'] = true;
 		console.log("down");
 	});
